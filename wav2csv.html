@@ -1,0 +1,99 @@
+<p>期待される動作=*.wavファイルを選択すると*.csvを生成しダウンロードする。</p>
+<input type='file' accept='audio/wav' />
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<a download="wave.csv">a</a>
+<script>
+	var array=0
+	var offset=0
+	var StringBuffer = function(string) {
+		this.buffer = [];
+		this.append = function(string) {
+			this.buffer.push(string);
+			return this;
+		};
+		this.toString = function() {
+			return this.buffer.join('');
+		};
+		if(string){
+			this.append(string);
+		}
+	};
+
+	function read(size){
+		offset+=size
+		if(offset<array.length){
+			if(size>=4){
+				return-(array[offset-1]>>7)*0x100000000+array[offset-4]+array[offset-3]*0x100+array[offset-2]*0x10000+array[offset-1]*0x1000000
+			}
+			if(size==2){
+				return-(array[offset-1]>>7)*0x000010000+array[offset-2]+array[offset-1]*0x100
+			}
+		}
+		return 0
+	}
+	function tag2int(n,t){
+		var r=""
+		for(var i=4;i>0;i--){
+			r=r+String.fromCharCode(n&0xff)
+			n=n>>8
+		}
+		console.log(t,r)
+		return t==r
+	}
+	function conv(){
+		array=new Uint8Array(this.result)
+		offset=0
+		
+		var tmp,channel,samplesize,size
+		
+		console.log(read(4))
+		console.log(read(4))
+		console.log(read(4))
+		
+		while(tmp=read(4)){
+			if(0){
+			}else if(tag2int(tmp,"fmt ")){
+				console.log(read(4))
+				console.log(tmp=read(2))
+				console.log(channel=read(2))
+				console.log(read(4))
+				console.log(read(4))
+				console.log(samplesize=read(2))
+				console.log(read(2))
+				samplesize/=channel
+				if(tmp!=1){
+					console.log(tmp)
+					read(read(2))
+				}
+			}else if(tag2int(tmp,"data")){
+				console.log(size=read(4))
+				var csv=new StringBuffer()
+				for(var i=0;i<size/samplesize;i++){
+					tmp=""
+					for(var j=0;j<channel;j++){
+						tmp+=read(samplesize)+","
+					}
+					tmp+="\n"
+					csv.append(tmp)
+				}
+				csv=new Blob([csv.toString()])
+				csv=window.URL.createObjectURL(csv)
+				$("a").attr("href",csv)[0].click()
+			}else if(tag2int(tmp,"\0\0da")){
+				console.log("a")
+				offset-=2
+			}else{
+				read(read(4))
+			}
+		}
+	}
+	function readfile(){
+		var file_reader = new FileReader();
+		file_reader.onload=conv
+		if(this.value){
+			file_reader.readAsArrayBuffer(this.files[0]);
+		}
+	}
+	$("input").change(readfile).click(readfile)
+    </script>
+</script>
